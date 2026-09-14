@@ -6,7 +6,11 @@ import { usePathname, useRouter } from "next/navigation";
 const suggestions = ["help", "about", "ls", "cd projects", "cd blogs", "resume"];
 
 function routeForCommand(command: string,pathname: string) {
-  const normalized = command.trim().toLowerCase();
+  let normalized = command.trim().toLowerCase();
+  const checkSlash = normalized.slice(-1);
+  if(checkSlash==="/"){
+    normalized = normalized.slice(0,normalized.length-1);
+  }
   if (normalized === "about" || normalized === "whoami") return "/about";
   if (normalized === "ls" || normalized === "ls /" || (normalized === "cd .." && pathname!=="/")) return "/";
   if (normalized === "cd skills" || normalized === "ls skills") return "/skills";
@@ -14,7 +18,7 @@ function routeForCommand(command: string,pathname: string) {
   if (normalized === "cd experience" || normalized === "ls experience") return "/experience";
   if (normalized === "cd blogs" || normalized === "ls blogs") return "/blogs";
   if (normalized === "resume" || normalized === "overview" || normalized === "cat skills experience projects") return "/resume";
-  
+  if (normalized === "help") return null;
   const projectMatch = normalized.match(/^(?:cat projects\/|cat |cd projects && cat )([a-z0-9-]+)$/);
   if (projectMatch) return `/projects/${projectMatch[1]}`;
 
@@ -59,16 +63,17 @@ export default function TerminalShell({
     if (command === "clear") {
       setHistory([]);
       setInput("");
+      router.push("/");
       return;
     }
 
     const route = routeForCommand(command,pathname);
     if (route) {
       router.push(route);
-    } else {
+    }
+     else {
       setHistory((current) => [...current, command]);
     }
-
     setInput("");
     setHistoryIndex(-1);
   }
@@ -95,12 +100,12 @@ export default function TerminalShell({
       <section className="terminal-window" aria-label="Interactive portfolio terminal">
         <div className="window-bar">
           <div className="window-dots" aria-hidden="true"><i /><i /><i /></div>
-          <span className="window-title">aryan21 - zsh - 80x24</span>
+          <span className="window-title">aryan21 - bash - terminal</span>
           <span className="window-lock">public workspace</span>
         </div>
         <div className="terminal-body">
           <div className="boot-line"><span className="prompt-mark">&gt;</span><span>hello, human.</span><span className="cursor-block" aria-hidden="true" /></div>
-          <p className="boot-copy">This is a portfolio in terminal form.<br />Click a path below, or type a command if that is your thing.</p>
+          <p className="boot-copy">I am Aryan Sewani and this terminal and shell contains all about me.<br />If you are a Linux-holic, try typing a command like cd skills/<br/>You can also navigate directly by clicking on the yellow hyperlinks :)</p>
           <div className="terminal-divider" />
 
           <div className="terminal-transcript" aria-live="polite">
@@ -108,10 +113,12 @@ export default function TerminalShell({
               <div className="history-entry" key={`${command}-${index}`}>
                 <div className="command-echo"><span className="prompt-mark">&gt;</span><span>{promptPath} $</span><strong>{command}</strong></div>
                 <div className="command-output">
-                  {command === "help" ? <HelpOutput /> : command === "sudo make coffee" ? <CoffeeOutput /> : <p className="error-output">command not found: <strong>{command}</strong>. Try <button type="button" onClick={() => execute("help")}>help</button>.</p>}
+                  {command === "help" ? <HelpOutput /> : <p className="error-output">command not found: <strong>{command}</strong>. Try <button type="button" onClick={() => execute("help")}>help</button>.</p>}
                 </div>
               </div>
             ))}
+
+
 
             {initialCommand && (
               <div className="route-command"><div className="command-echo"><span className="prompt-mark">&gt;</span><span>{promptPath} $</span><strong>{initialCommand}</strong></div></div>
@@ -143,10 +150,6 @@ function commandForPath(pathname: string) {
   return undefined;
 }
 
-function HelpOutput() {
-  return <div className="help-output"><p className="output-intro">A small, friendly command set. You can also use the links above.</p><div className="command-list"><div><code>about</code><span>read a little about me</span></div><div><code>ls</code><span>see what is here</span></div><div><code>cd projects</code><span>explore selected work</span></div><div><code>cd experience</code><span>see where I have been</span></div><div><code>cd blogs</code><span>read field notes and essays</span></div><div><code>resume</code><span>open the quick overview</span></div><div><code>clear</code><span>clear terminal-only output</span></div></div></div>;
-}
-
-function CoffeeOutput() {
-  return <div className="coffee-output"><span className="coffee-cup" aria-hidden="true">[coffee]</span><div><strong>Brewing a fresh cup...</strong><p>Permission granted. Good ideas incoming.</p></div></div>;
-}
+  function HelpOutput() {
+  return <div className="help-output"><p className="output-intro">A small, friendly command set. You can also use the links above.</p><div className="command-list"><div><code>about</code><span>read a little about me</span></div><div><code>ls</code><span>see what is here</span></div><div><code>cd projects</code><span>explore selected work</span></div><div><code>cd experience</code><span>see where I have been</span></div><div><code>cd blogs</code><span>read field notes and essays</span></div><div><code>resume</code><span>open the quick overview</span></div><div><code>clear</code><span>clear terminal-only output</span><code>cd ..</code><span>Go back a directory(unless you are already at user directory)</span><code>cat</code><span>You need to figure out the file names tho :-D</span></div></div></div>;
+  }

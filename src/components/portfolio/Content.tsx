@@ -26,7 +26,7 @@ export function ExperienceOutput({ entries }: { entries: Experience[] }) {
 }
 
 export function ProjectList({ projects }: { projects: Project[] }) {
-  return <div className="project-grid">{projects.map((project, index) => <article className="project-card" key={project.id}>{projectMedia[project.slug] && <Image className="project-image" src={projectMedia[project.slug]} alt={`${project.title} project screenshot`} width={900} height={520} /> }<div className="project-top"><span className="dim">{String(index + 1).padStart(2, "0")}</span><span className="card-arrow" aria-hidden="true">-&gt;</span></div><h3>{project.title}</h3><p>{project.summary}</p><div className="tag-row">{project.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><a className="text-action" href={`/projects/${project.slug}`}>read project <span aria-hidden="true">-&gt;</span></a></article>)}</div>;
+  return <div className="project-grid">{projects.map((project, index) => <article className="project-card" key={project.id}>{projectMedia[project.slug] && <Image className="project-image" src={projectMedia[project.slug]} alt={`${project.title} project screenshot`} width={900} height={500}  /> }<div className="project-top"><span className="dim">{String(index + 1).padStart(2, "0")}</span><span className="card-arrow" aria-hidden="true">-&gt;</span></div><h3>{project.title}</h3><p>{project.summary}</p><div className="tag-row">{project.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><a className="text-action" href={`/projects/${project.slug}`}>read project <span aria-hidden="true">-&gt;</span></a></article>)}</div>;
 }
 
 export function ProjectDetail({ project }: { project: Project }) {

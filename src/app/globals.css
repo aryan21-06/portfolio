@@ -62,7 +62,7 @@ button { cursor: pointer; }
 .card-arrow { color: var(--lime); }
 .project-card h3, .experience-item h3 { color: #f0f2e9; font-size: 16px; font-weight: 400; margin: 0 0 10px; }
 .project-card p, .experience-item p { margin: 0 0 16px; }
-.project-image { display: block; height: auto; margin: -20px -20px 20px; max-width: calc(100% + 40px); width: calc(100% + 40px); }
+.project-image { display: block; height: auto; margin: 0 auto 16px ; max-width: 120px; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .tag-row span { border: 1px solid #4a5145; color: #bbc3af; font-size: 9px; padding: 4px 6px; }
 .text-action { background: transparent; border: 0; color: var(--lime); display: inline-block; font-family: inherit; font-size: 11px; margin-top: 22px; padding: 0; }
