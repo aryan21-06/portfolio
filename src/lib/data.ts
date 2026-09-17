@@ -1,3 +1,4 @@
+import "server-only";
 import { getAdminDb } from "@/src/lib/firebase/admin";
 import type { About, Blog, Experience, Project, Skill } from "@/src/lib/types";
 
