@@ -1,7 +1,7 @@
 import { EmptyState, ProjectList } from "@/src/components/portfolio/Content";
 import { getProjects } from "@/src/lib/data";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export default async function ProjectsPage() {
   const projects = await getProjects();

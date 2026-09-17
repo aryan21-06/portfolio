@@ -1,7 +1,7 @@
 import { EmptyState, ExperienceOutput } from "@/src/components/portfolio/Content";
 import { getExperience } from "@/src/lib/data";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export default async function ExperiencePage() {
   const experience = await getExperience();

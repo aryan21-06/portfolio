@@ -1,7 +1,7 @@
 import { BlogList, EmptyState } from "@/src/components/portfolio/Content";
 import { getBlogs } from "@/src/lib/data";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export default async function BlogsPage() {
   const blogs = await getBlogs();

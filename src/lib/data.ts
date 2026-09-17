@@ -31,8 +31,16 @@ export async function getProjects() {
 }
 
 export async function getProjectBySlug(slug: string) {
-  const projects = await getProjects();
-  return projects.find((project) => project.slug === slug) ?? null;
+  const snapshot = await getAdminDb()
+    .collection("projects")
+    .where("slug", "==", slug)
+    .limit(1)
+    .get();
+  const document = snapshot.docs[0];
+
+  if (!document || document.data().status !== "published") return null;
+
+  return { id: document.id, ...document.data() } as Project;
 }
 
 export async function getBlogs() {
@@ -40,6 +48,14 @@ export async function getBlogs() {
 }
 
 export async function getBlogBySlug(slug: string) {
-  const blogs = await getBlogs();
-  return blogs.find((blog) => blog.slug === slug) ?? null;
+  const snapshot = await getAdminDb()
+    .collection("blogs")
+    .where("slug", "==", slug)
+    .limit(1)
+    .get();
+  const document = snapshot.docs[0];
+
+  if (!document || document.data().status !== "published") return null;
+
+  return { id: document.id, ...document.data() } as Blog;
 }
