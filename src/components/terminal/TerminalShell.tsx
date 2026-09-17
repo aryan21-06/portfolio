@@ -1,23 +1,29 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-const suggestions = ["help", "about", "cd projects", "cd blogs", "cd experience", "resume"];
+const suggestions = ["home","help", "about", "cd projects", "cd blogs", "cd experience", "resume"];
 
 type HistoryEntry =
   | {
+      id: string;
       command: string;
       promptPath: string;
       type: "route";
       route: string;
+      output?: ReactNode;
+      outputHtml?: string;
+      showCommand: boolean;
     }
   | {
+      id: string;
       command: string;
       promptPath: string;
       type: "help";
     }
   | {
+      id: string;
       command: string;
       promptPath: string;
       type: "error";
@@ -59,13 +65,22 @@ function routeForCommand(command: string, pathname: string) {
   if (
     normalized === "resume" ||
     normalized === "overview" ||
-    normalized === "cat skills/* experience/* projects/*"
+    normalized === "cat skills/* experience/* projects/*" ||
+    normalized === "cat skills/* projects/* experience/*" ||
+    normalized === "cat experience/* skills/* projects/*" ||
+    normalized === "cat experience/* projects/* skills/*" ||
+    normalized === "cat projects/* skills/* experience/*" ||
+    normalized === "cat projects/* experience/* skills/*"
   ) {
     return "/resume";
   }
 
   if (normalized === "help" || normalized === "man") {
     return null;
+  }
+
+  if(normalized==="home"){
+    return "/";
   }
 
   const projectMatch = normalized.match(
@@ -134,21 +149,155 @@ export default function TerminalShell({
   const router = useRouter();
   const pathname = usePathname();
 
+  const promptPath = currentPath(pathname);
+  const initialCommand = commandForPath(pathname);
+  const entrySequence = useRef(1);
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>(() => [
+    {
+      id: "entry-0",
+      command: initialCommand ?? "",
+      promptPath,
+      type: "route",
+      route: pathname,
+      output: children,
+      showCommand: Boolean(initialCommand),
+    },
+  ]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
   const terminalEnd = useRef<HTMLDivElement>(null);
+  const liveRouteOutput = useRef<HTMLDivElement>(null);
+  const pendingRoute = useRef<{ id: string; route: string } | null>(null);
+  const previousPathname = useRef(pathname);
 
-  const promptPath = currentPath(pathname);
-  const initialCommand = commandForPath(pathname);
+  useLayoutEffect(() => {
+    const scrollToTerminalEnd = () => {
+      terminalEnd.current?.scrollIntoView({
+        behavior: "auto",
+        block: "end",
+      });
+    };
+
+    scrollToTerminalEnd();
+    const frame = requestAnimationFrame(scrollToTerminalEnd);
+
+    return () => cancelAnimationFrame(frame);
+  }, [history, pathname]);
 
   useEffect(() => {
-    terminalEnd.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
+    if (previousPathname.current === pathname) {
+      return;
+    }
+
+    previousPathname.current = pathname;
+
+    const pending = pendingRoute.current;
+
+    if (pending?.route === pathname) {
+      pendingRoute.current = null;
+      setHistory((current) =>
+        current.map((entry) =>
+          entry.id === pending.id && entry.type === "route"
+            ? { ...entry, output: children }
+            : entry
+        )
+      );
+      return;
+    }
+
+    const id = `entry-${entrySequence.current++}`;
+    setHistory((current) => [
+      ...current,
+      {
+        id,
+        command: commandForPath(pathname) ?? "",
+        promptPath: currentPath(pathname),
+        type: "route",
+        route: pathname,
+        output: children,
+        showCommand: Boolean(commandForPath(pathname)),
+      },
+    ]);
+  }, [children, pathname]);
+
+  function createEntryId() {
+    return `entry-${entrySequence.current++}`;
+  }
+
+  function freezeLiveRouteOutput() {
+    const outputHtml = liveRouteOutput.current?.innerHTML;
+
+    if (!outputHtml) {
+      return;
+    }
+
+    setHistory((current) => {
+      for (let index = current.length - 1; index >= 0; index -= 1) {
+        const entry = current[index];
+
+        if (entry.type === "route" && entry.output) {
+          return current.map((currentEntry, currentIndex) =>
+            currentIndex === index
+              ? { ...currentEntry, output: undefined, outputHtml }
+              : currentEntry
+          );
+        }
+      }
+
+      return current;
     });
-  }, [history, pathname]);
+  }
+
+  function navigate(command: string, route: string, path: string) {
+    freezeLiveRouteOutput();
+
+    const id = createEntryId();
+    const entry: HistoryEntry = {
+      id,
+      command,
+      promptPath: path,
+      type: "route",
+      route,
+      showCommand: true,
+    };
+
+    setHistory((current) => [...current, entry]);
+
+    if (route === pathname) {
+      setHistory((current) =>
+        current.map((currentEntry) =>
+          currentEntry.id === id && currentEntry.type === "route"
+            ? { ...currentEntry, output: children }
+            : currentEntry
+        )
+      );
+      return;
+    }
+
+    pendingRoute.current = { id, route };
+    router.push(route);
+  }
+
+  function onTerminalClickCapture(event: React.MouseEvent<HTMLElement>) {
+    const target = event.target;
+
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const link = target.closest<HTMLAnchorElement>("a[href]");
+
+    if (!link || link.target === "_blank") {
+      return;
+    }
+
+    const destination = new URL(link.href, window.location.href);
+
+    if (destination.origin === window.location.origin && destination.pathname !== pathname) {
+      freezeLiveRouteOutput();
+    }
+  }
 
   function execute(rawCommand: string) {
     const command = rawCommand.trim().toLowerCase();
@@ -160,7 +309,19 @@ export default function TerminalShell({
     // --------------------
 
     if (command === "clear") {
-      setHistory([]);
+      const id = createEntryId();
+      pendingRoute.current = null;
+      setHistory([
+        {
+          id,
+          command: initialCommand ?? "",
+          promptPath,
+          type: "route",
+          route: pathname,
+          output: children,
+          showCommand: Boolean(initialCommand),
+        },
+      ]);
       setInput("");
       setHistoryIndex(-1);
       return;
@@ -174,6 +335,7 @@ export default function TerminalShell({
       setHistory((current) => [
         ...current,
         {
+          id: createEntryId(),
           command,
           promptPath,
           type: "help",
@@ -189,7 +351,7 @@ export default function TerminalShell({
       const parent = parentPath(pathname);
 
       if (parent !== pathname) {
-        router.push(parent);
+        navigate(command, parent, promptPath);
       }
 
       setInput("");
@@ -204,15 +366,7 @@ export default function TerminalShell({
     const route = routeForCommand(command, pathname);
 
     if (route) {
-      setHistory((current) => [
-        ...current,
-        {
-          command,
-          promptPath,
-          type: "route",
-          route,
-        },
-      ]);
+      navigate(command, route, promptPath);
 
       setInput("");
       setHistoryIndex(-1);
@@ -228,6 +382,7 @@ export default function TerminalShell({
     setHistory((current) => [
       ...current,
       {
+        id: createEntryId(),
         command,
         promptPath,
         type: "error",
@@ -267,7 +422,7 @@ export default function TerminalShell({
   }
 
   return (
-    <main className="terminal-app">
+    <main className="terminal-app" onClickCapture={onTerminalClickCapture}>
       <section
         className="terminal-window"
         aria-label="Interactive portfolio terminal"
@@ -284,7 +439,7 @@ export default function TerminalShell({
           </span>
 
           <span className="window-lock">
-            public workspace
+            Secure Shell
           </span>
         </div>
 
@@ -299,11 +454,11 @@ export default function TerminalShell({
           </div>
 
           <p className="boot-copy">
-            I am Aryan Sewani and this terminal and shell contains all about me.
+            I am Aryan Sewani and I use linux btw.
             <br />
-            If you are a Linux-holic, try typing a command like cd skills/
+            Try writing a command (eg. cd skills/) or read the command manual by typing help / man.
             <br />
-            You can also navigate directly by clicking on the yellow hyperlinks :)
+            You can also navigate directly by clicking on the yellow hyperlinks on home :)
           </p>
 
           <div className="terminal-divider" />
@@ -314,16 +469,18 @@ export default function TerminalShell({
 
             {/* OLD COMMAND HISTORY */}
 
-            {history.map((entry, index) => (
+            {history.map((entry) => (
               <div
                 className="history-entry"
-                key={`${entry.command}-${index}`}
+                key={entry.id}
               >
-                <div className="command-echo">
-                  <span className="prompt-mark">&gt;</span>
-                  <span>{entry.promptPath} $</span>
-                  <strong>{entry.command}</strong>
-                </div>
+                {(entry.type !== "route" || entry.showCommand) && (
+                  <div className="command-echo">
+                    <span className="prompt-mark">&gt;</span>
+                    <span>{entry.promptPath} $</span>
+                    <strong>{entry.command}</strong>
+                  </div>
+                )}
 
                 <div className="command-output">
 
@@ -344,37 +501,26 @@ export default function TerminalShell({
                     </p>
                   )}
 
-                  {entry.type === "route" && (
-                    <p className="output-intro">
-                      navigating to{" "}
-                      <strong>{entry.route}</strong>...
-                    </p>
-                  )}
+                  {entry.type === "route" &&
+                    (entry.outputHtml ? (
+                      <div
+                        className="route-output"
+                        dangerouslySetInnerHTML={{ __html: entry.outputHtml }}
+                      />
+                    ) : entry.output ? (
+                      <div className="route-output" ref={liveRouteOutput}>
+                        {entry.output}
+                      </div>
+                    ) : (
+                      <p className="output-intro">
+                        navigating to <strong>{entry.route}</strong>...
+                      </p>
+                    ))}
 
                 </div>
               </div>
             ))}
             
-            {/* CURRENT ROUTE */}
-
-            {initialCommand && (
-              <>
-                <div className="route-command">
-                  <div className="command-echo">
-                    <span className="prompt-mark">&gt;</span>
-                    <span>{promptPath} $</span>
-                    <strong>{initialCommand}</strong>
-                  </div>
-                </div>
-
-              </>
-            )}
-
-            <div className="route-output">
-              {children}
-            </div>
-
-            <div ref={terminalEnd} />
           </div>
 
           {/* INPUT */}
@@ -417,6 +563,8 @@ export default function TerminalShell({
               </button>
             ))}
           </div>
+
+          <div ref={terminalEnd} />
 
         </div>
       </section>
